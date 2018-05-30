@@ -8,13 +8,12 @@ namespace parsing
   ParseResult LogiqxParser::parse(const path& path)
   {
     pugi::xml_document doc;
-    pugi::xml_parse_result result = doc.load_file(path.c_str());
+    pugi::xml_parse_result xmlResult = doc.load_file(path.c_str());
     
-    if (result)
+    ParseResult result = { 0, 0 };
+    
+    if (xmlResult)
     {
-      size_t count = 0;
-      size_t sizeInBytes = 0;
-      
       const auto& games = doc.child("datafile").children("game");
       
       for (pugi::xml_node game : games)
@@ -31,14 +30,13 @@ namespace parsing
           entry.hash.md5 = strings::toByteArray(rom.attribute("md5").as_string());
           entry.hash.sha1 = strings::toByteArray(rom.attribute("sha1").as_string());
        
-          ++count;
-          sizeInBytes += entry.hash.size;
+          ++result.count;
+          result.sizeInBytes += entry.hash.size;
+          result.entries.push_back(entry);
         }
       }
-    
-      return { count, sizeInBytes };
     }
-    
-    return { 0, 0 };
+  
+    return result;
   }
 }
