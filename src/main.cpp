@@ -19,7 +19,61 @@
 #include <numeric>
 
 
-#include "leveldb/db.h"
+#include <cstdio>
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+class Hasher
+{
+  using fd_t = int;
+  
+  hash::crc32_digester crc;
+  hash::sha1_digester sha1;
+  hash::md5_digester md5;
+  
+  size_t sizeOfFile(fd_t fd)
+  {
+    struct stat statbuf;
+    fstat(fd, &statbuf);
+    return statbuf.st_size;
+  }
+  
+public:
+  
+  HashData compute(const path& path)
+  {
+    fd_t fd = open(path.c_str(), O_RDONLY);
+    size_t size = sizeOfFile(fd);
+    
+    byte* buffer = reinterpret_cast<byte*>(mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0));
+    
+    crc.update(buffer, size);
+    md5.update(buffer, size);
+    sha1.update(buffer, size);
+    
+    
+    munmap(buffer, size);
+    
+    HashData hashData;
+    
+    hashData.size = size;
+    hashData.crc32 = crc.get();
+    hashData.md5 = md5.get();
+    hashData.sha1 = sha1.get();
+    
+    return hashData;
+  }
+  
+  void reset()
+  {
+    crc.reset();
+    md5.reset();
+    sha1.reset();
+  }
+};
+
+
 
 class Database
 {
@@ -36,6 +90,7 @@ public:
   }
 };
 
+#include "leveldb/db.h"
 class LevelDBDatabase : public Database
 {
 private:
@@ -102,8 +157,15 @@ int main(int argc, const char* argv[])
   Database* database = new LevelDBDatabase();
   database->init();
   
+  Hasher hasher;
+  
   for (const auto& dat : dats)
   {
+    HashData hash = hasher.compute(dat);
+    hasher.reset();
+    std::cout << std::hex << hash.crc32 << " " << hash.md5.operator std::string() << " " << hash.sha1.operator std::string() << std::endl;
+    
+    
     auto result = parser.parse(dat);
     
     tresult.sizeInBytes += result.sizeInBytes;

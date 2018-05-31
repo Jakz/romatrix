@@ -26,6 +26,8 @@ namespace hash
     void update(const void* data, size_t length);
     crc32_t get() const { return value; }
     
+    void reset() { value = 0; }
+    
     static crc32_t compute(const void* data, size_t length);
     static crc32_t compute(const class path& path);
   };
@@ -58,6 +60,8 @@ namespace hash
       MD5() { init(); }
       void update(const void *buf, size_t length);
       md5_t finalize();
+      void init();
+
       
     private:
       static constexpr u32 blocksize = 64;
@@ -69,8 +73,6 @@ namespace hash
       md5_t digest; // the result
       
     private:
-      
-      void init();
       
       void transform(const u8 block[blocksize]);
       static void decode(u32* output, const u8* input, size_t len);
@@ -102,6 +104,7 @@ namespace hash
     md5_digester() { }
     void update(const void* data, size_t length);
     md5_t get() { return impl.finalize(); }
+    void reset() { impl.init(); }
     
     static md5_t compute(const void* data, size_t length);
   };
@@ -153,12 +156,12 @@ namespace hash
       
       void buffer_to_block(const u8* buffer, u32 block[BLOCK_INTS]);
       void transform(u32* digest, u32 block[BLOCK_INTS]);
-      void init();
 
     public:
       SHA1() { init(); }
       void update(const void* data, size_t length);
       sha1_t finalize();
+      void init();
     };
   }
   
@@ -174,6 +177,7 @@ namespace hash
     sha1_digester() { }
     void update(const void* data, size_t length) { impl.update(data, length); }
     sha1_t get() { return impl.finalize(); }
+    void reset() { impl.init(); }
     
     static sha1_t compute(const void* data, size_t length)
     {
