@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		042F33BE20BF8EAA00FE15EE /* libleveldb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 042F33BD20BF8EAA00FE15EE /* libleveldb.a */; };
+		04CDA92C20C18E2500DBFB40 /* libosxfuse.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 04CDA92A20C18DFC00DBFB40 /* libosxfuse.2.dylib */; };
 		04D7656620BE1B4C00D25B87 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04D7656420BE1B4C00D25B87 /* main.cpp */; };
 		04D7656820BE1BA300D25B87 /* dats in CopyFiles */ = {isa = PBXBuildFile; fileRef = 04D7656720BE1B9700D25B87 /* dats */; };
 		04D7656F20BE1C2900D25B87 /* pugixml.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04D7656C20BE1C2900D25B87 /* pugixml.cpp */; };
@@ -40,6 +41,7 @@
 
 /* Begin PBXFileReference section */
 		042F33BD20BF8EAA00FE15EE /* libleveldb.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libleveldb.a; path = ../../../../../../../usr/local/Cellar/leveldb/1.20_2/lib/libleveldb.a; sourceTree = "<group>"; };
+		04CDA92A20C18DFC00DBFB40 /* libosxfuse.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libosxfuse.2.dylib; path = ../../../../../../../usr/local/lib/libosxfuse.2.dylib; sourceTree = "<group>"; };
 		04D7655920BE1B1400D25B87 /* romatrix */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = romatrix; sourceTree = BUILT_PRODUCTS_DIR; };
 		04D7656420BE1B4C00D25B87 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		04D7656720BE1B9700D25B87 /* dats */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dats; path = ../dats; sourceTree = "<group>"; };
@@ -79,6 +81,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				04CDA92C20C18E2500DBFB40 /* libosxfuse.2.dylib in Frameworks */,
 				042F33BE20BF8EAA00FE15EE /* libleveldb.a in Frameworks */,
 				04D7658E20BE1DAF00D25B87 /* libz.tbd in Frameworks */,
 			);
@@ -181,6 +184,7 @@
 		04D7658C20BE1DAF00D25B87 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				04CDA92A20C18DFC00DBFB40 /* libosxfuse.2.dylib */,
 				042F33BD20BF8EAA00FE15EE /* libleveldb.a */,
 				04D7658D20BE1DAF00D25B87 /* libz.tbd */,
 			);
@@ -373,26 +377,41 @@
 		04D7656120BE1B1400D25B87 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"_FILE_OFFSET_BITS=64",
+					"DEBUG=1",
+				);
 				HEADER_SEARCH_PATHS = (
 					"${SRCROOT}/../src",
 					/usr/local/Cellar/leveldb/1.20_2/include,
+					/usr/local/include/osxfuse,
 				);
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/leveldb/1.20_2/lib;
+				LIBRARY_SEARCH_PATHS = (
+					/usr/local/Cellar/leveldb/1.20_2/lib,
+					/usr/local/lib,
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = "-Wno-documentation";
 			};
 			name = Debug;
 		};
 		04D7656220BE1B1400D25B87 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = "_FILE_OFFSET_BITS=64";
 				HEADER_SEARCH_PATHS = (
 					"${SRCROOT}/../src",
 					/usr/local/Cellar/leveldb/1.20_2/include,
+					/usr/local/include/osxfuse,
 				);
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/leveldb/1.20_2/lib;
+				LIBRARY_SEARCH_PATHS = (
+					/usr/local/Cellar/leveldb/1.20_2/lib,
+					/usr/local/lib,
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = "-Wno-documentation";
 			};
 			name = Release;
 		};

@@ -6,6 +6,132 @@
 //  Copyright © 2018 Jack. All rights reserved.
 //
 
+#define FUSE_USE_VERSION 26
+#include <cstring>
+#include <cerrno>
+#include <fuse/fuse.h>
+
+#include <iostream>
+
+static const char* hello_str = "Hello World!\n";
+static const char* hello_path = "/hello";
+
+
+class MatrixFS
+{
+private:
+  struct fuse_operations ops;
+  fuse* fs;
+  
+  static int h_statsfs(const char* foo, struct statvfs* stats)
+  {
+    stats->f_bsize = 2048;
+    stats->f_blocks = 2;
+    stats->f_bfree = std::numeric_limits<fsblkcnt_t>::max();
+    stats->f_bavail = std::numeric_limits<fsblkcnt_t>::max();
+    stats->f_files = 2;
+    stats->f_ffree = std::numeric_limits<fsfilcnt_t>::max();
+    stats->f_namemax = 256;
+    return 0;
+  }
+
+  static int h_getattr(const char *path, struct stat *stbuf)
+  {
+    //std::cout << "getattr" << std::endl;
+    int res = 0;
+    memset(stbuf, 0, sizeof(struct stat));
+    
+    if (strcmp(path, "/") == 0)
+    {
+      stbuf->st_mode = S_IFDIR | 0755;
+      stbuf->st_nlink = 1;
+    }
+    else if (strcmp(path, hello_path) == 0)
+    {
+      stbuf->st_mode = S_IFREG | 0444;
+      stbuf->st_nlink = 1;
+      stbuf->st_size = strlen(hello_str);
+    }
+    else
+      res = -ENOENT;
+    
+    return res;
+  }
+  
+  static int h_access(const char* path, int)
+  {
+    return 0;
+  }
+
+  
+  static int h_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
+  {
+    //std::cout << "readdir" << std::endl;
+
+    (void) offset;
+    (void) fi;
+    
+    if (strcmp(path, "/") != 0)
+      return -ENOENT;
+    
+    filler(buf, ".", NULL, 0);
+    filler(buf, "..", NULL, 0);
+    filler(buf, hello_path + 1, NULL, 0);
+    
+    return 0;
+  }
+  
+  static int h_open(const char *path, struct fuse_file_info *fi)
+  {
+    //std::cout << "open" << std::endl;
+    
+    if (strcmp(path, hello_path) != 0)
+      return -ENOENT;
+    if ((fi->flags & O_ACCMODE) != O_RDONLY)
+      return -EACCES;
+    return 0;
+  }
+  
+  static int h_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+  {
+    //std::cout << "read" << std::endl;
+    
+    size_t len;
+    (void) fi;
+    if(strcmp(path, hello_path) != 0)
+      return -ENOENT;
+    len = strlen(hello_str);
+    if (offset < len) {
+      if (offset + size > len)
+        size = len - offset;
+      memcpy(buf, hello_str + offset, size);
+    } else
+      size = 0;
+    return (int)size;
+  }
+  
+public:
+  MatrixFS()
+  {
+    memset(&ops, 0, sizeof(fuse_operations));
+    
+    ops.statfs = h_statsfs;
+    ops.access = h_access;
+    ops.getattr = h_getattr;
+    ops.readdir = h_readdir;
+    ops.open = h_open;
+    ops.read = h_read;
+  }
+  
+  void createHandle()
+  {
+    char* argv[] = { "fuse", "-d", "/Users/jack/mount" };
+    int i =  fuse_main(3, argv, &ops, nullptr);
+    
+  }
+  
+};
+
 #include <iostream>
 
 #include "libs/pugixml/pugixml.hpp"
@@ -147,6 +273,12 @@ public:
 
 int main(int argc, const char* argv[])
 {
+  MatrixFS fs;
+  fs.createHandle();
+  
+  return 0;
+  
+  
   auto dats = FileSystem::i()->contentsOfFolder("dats");
   
   parsing::LogiqxParser parser;
