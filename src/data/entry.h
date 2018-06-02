@@ -49,3 +49,10 @@ struct Entry
   HashData hash;
   std::string name;
 };
+
+struct DatFile
+{
+  std::string name;
+  std::string folderName;
+  std::vector<const Entry*> entries;
+};

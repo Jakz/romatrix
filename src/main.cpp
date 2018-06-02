@@ -13,75 +13,39 @@
 
 #include <iostream>
 
+#include "base/path.h"
+
 static const char* hello_str = "Hello World!\n";
 static const char* hello_path = "/hello";
 
+using fs_ret = int;
+using fs_path = path;
 
 class MatrixFS
 {
 private:
+  static MatrixFS* instance;
   struct fuse_operations ops;
   fuse* fs;
   
-  static int h_statsfs(const char* foo, struct statvfs* stats)
+  static int statsfs(const char* foo, struct statvfs* stats)
   {
     stats->f_bsize = 2048;
     stats->f_blocks = 2;
     stats->f_bfree = std::numeric_limits<fsblkcnt_t>::max();
     stats->f_bavail = std::numeric_limits<fsblkcnt_t>::max();
-    stats->f_files = 2;
+    stats->f_files = 3;
     stats->f_ffree = std::numeric_limits<fsfilcnt_t>::max();
     stats->f_namemax = 256;
     return 0;
   }
 
-  static int h_getattr(const char *path, struct stat *stbuf)
-  {
-    //std::cout << "getattr" << std::endl;
-    int res = 0;
-    memset(stbuf, 0, sizeof(struct stat));
-    
-    if (strcmp(path, "/") == 0)
-    {
-      stbuf->st_mode = S_IFDIR | 0755;
-      stbuf->st_nlink = 1;
-    }
-    else if (strcmp(path, hello_path) == 0)
-    {
-      stbuf->st_mode = S_IFREG | 0444;
-      stbuf->st_nlink = 1;
-      stbuf->st_size = strlen(hello_str);
-    }
-    else
-      res = -ENOENT;
-    
-    return res;
-  }
+  static int access(const char* path, int) { return 0; }
   
-  static int h_access(const char* path, int)
-  {
-    return 0;
-  }
-
+  static int sgetattr(const char *path, struct stat *stbuf) { return instance->getattr(path, stbuf); }
+  static int sreaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) { return instance->readdir(path, buf, filler, offset, fi); }
   
-  static int h_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
-  {
-    //std::cout << "readdir" << std::endl;
-
-    (void) offset;
-    (void) fi;
-    
-    if (strcmp(path, "/") != 0)
-      return -ENOENT;
-    
-    filler(buf, ".", NULL, 0);
-    filler(buf, "..", NULL, 0);
-    filler(buf, hello_path + 1, NULL, 0);
-    
-    return 0;
-  }
-  
-  static int h_open(const char *path, struct fuse_file_info *fi)
+  static int open(const char *path, struct fuse_file_info *fi)
   {
     //std::cout << "open" << std::endl;
     
@@ -92,7 +56,7 @@ private:
     return 0;
   }
   
-  static int h_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+  static int read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
   {
     //std::cout << "read" << std::endl;
     
@@ -110,17 +74,23 @@ private:
     return (int)size;
   }
   
+  fs_ret getattr(const fs_path& path, struct stat* stbuf);
+  fs_ret readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi);
+
+  
 public:
   MatrixFS()
   {
+    instance = this;
+    
     memset(&ops, 0, sizeof(fuse_operations));
     
-    ops.statfs = h_statsfs;
-    ops.access = h_access;
-    ops.getattr = h_getattr;
-    ops.readdir = h_readdir;
-    ops.open = h_open;
-    ops.read = h_read;
+    ops.statfs = statsfs;
+    ops.access = access;
+    ops.getattr = sgetattr;
+    ops.readdir = sreaddir;
+    ops.open = open;
+    ops.read = read;
   }
   
   void createHandle()
@@ -129,8 +99,9 @@ public:
     int i =  fuse_main(3, argv, &ops, nullptr);
     
   }
-  
 };
+
+MatrixFS* MatrixFS::instance;
 
 #include <iostream>
 
@@ -270,15 +241,11 @@ public:
   }
 };
 
-
+std::vector<DatFile> datFiles;
+    
+    
 int main(int argc, const char* argv[])
 {
-  MatrixFS fs;
-  fs.createHandle();
-  
-  return 0;
-  
-  
   auto dats = FileSystem::i()->contentsOfFolder("dats");
   
   parsing::LogiqxParser parser;
@@ -286,8 +253,8 @@ int main(int argc, const char* argv[])
   std::unordered_set<HashData, HashData::hasher> data;
   parsing::ParseResult tresult;
   
-  Database* database = new LevelDBDatabase();
-  database->init();
+  //Database* database = new LevelDBDatabase();
+  //database->init();
   
   Hasher hasher;
   
@@ -308,18 +275,79 @@ int main(int argc, const char* argv[])
       const byte* key = entry.hash.sha1.inner();
       const byte* value = (const byte*) &entry.hash;
       
-      if (!database->contains(std::string((const char*)key)))
-        database->write(key, sizeof(hash::sha1_t), value, sizeof(HashData));
+      /*if (!database->contains(std::string((const char*)key)))
+        database->write(key, sizeof(hash::sha1_t), value, sizeof(HashData));*/
       
       
       data.insert(std::move(entry.hash));
     }
+    
+    datFiles.push_back({ dat.filename(), dat.filename() });
   }
   
   std::cout << tresult.count << " entries in " << strings::humanReadableSize(tresult.sizeInBytes, true, 2) << std::endl;
   std::cout << data.size() << " entries in " << strings::humanReadableSize(std::accumulate(data.begin(), data.end(), 0UL, [](u64 v, const HashData& e) { return v += e.size; }), true, 2) << std::endl;
 
-  database->shutdown();
+  //database->shutdown();
+  
+  MatrixFS fs;
+  fs.createHandle();
   
   return 0;
+}
+
+#define ATTR_AS_FILE(x) x->st_mode = S_IFREG | 0444;
+#define ATTR_AS_DIR(x) x->st_mode = S_IFDIR | 0755;
+
+fs_ret MatrixFS::getattr(const fs_path& path, struct stat* stbuf)
+{
+    int res = 0;
+    memset(stbuf, 0, sizeof(struct stat));
+    stbuf->st_nlink = 1;
+    
+    if (path == "/")
+    {
+      ATTR_AS_DIR(stbuf);
+    }
+    else if (path.isAbsolute())
+    {
+      auto it = std::find_if(datFiles.begin(), datFiles.end(), [&path](const DatFile& dat) { return path == "/" + dat.folderName; });
+      if (it != datFiles.end())
+        ATTR_AS_DIR(stbuf);
+      
+      /*stbuf->st_mode = S_IFREG | 0444;
+      stbuf->st_nlink = 1;
+      stbuf->st_size = strlen(hello_str);*/
+    }
+    else
+      res = -ENOENT;
+    
+    return res;
+}
+
+
+fs_ret MatrixFS::readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi)
+{
+  if (path == "/")
+  {
+    filler(buf, ".", nullptr, 0);
+    filler(buf, "..", nullptr, 0);
+    
+    for (const auto& dat : datFiles)
+      filler(buf, dat.folderName.c_str(), nullptr, 0);
+    
+    return 0;
+  }
+  else if (path.isAbsolute())
+  {
+    auto it = std::find_if(datFiles.begin(), datFiles.end(), [&path](const DatFile& dat) { return path.relativizeToParent(::path("/")) == dat.folderName; });
+    if (it != datFiles.end())
+    {
+      filler(buf, ".", nullptr, 0);
+      filler(buf, "..", nullptr, 0);
+      return 0;
+    }
+  }
+  
+  return -ENOENT;
 }
