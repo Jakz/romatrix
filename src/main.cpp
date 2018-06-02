@@ -270,6 +270,10 @@ int main(int argc, const char* argv[])
     tresult.sizeInBytes += result.sizeInBytes;
     tresult.count += result.count;
     
+    datFiles.push_back({ dat.filename(), dat.filename() });
+    auto& datEntry = datFiles.back();
+
+    
     for (auto& entry : result.entries)
     {
       const byte* key = entry.hash.sha1.inner();
@@ -280,9 +284,10 @@ int main(int argc, const char* argv[])
       
       
       data.insert(std::move(entry.hash));
+      
+      datEntry.entries.push_back(new Entry(entry));
     }
     
-    datFiles.push_back({ dat.filename(), dat.filename() });
   }
   
   std::cout << tresult.count << " entries in " << strings::humanReadableSize(tresult.sizeInBytes, true, 2) << std::endl;
@@ -296,8 +301,8 @@ int main(int argc, const char* argv[])
   return 0;
 }
 
-#define ATTR_AS_FILE(x) x->st_mode = S_IFREG | 0444;
-#define ATTR_AS_DIR(x) x->st_mode = S_IFDIR | 0755;
+#define ATTR_AS_FILE(x) x->st_mode = S_IFREG | 0444
+#define ATTR_AS_DIR(x) x->st_mode = S_IFDIR | 0755
 
 fs_ret MatrixFS::getattr(const fs_path& path, struct stat* stbuf)
 {
@@ -311,10 +316,17 @@ fs_ret MatrixFS::getattr(const fs_path& path, struct stat* stbuf)
     }
     else if (path.isAbsolute())
     {
-      auto it = std::find_if(datFiles.begin(), datFiles.end(), [&path](const DatFile& dat) { return path == "/" + dat.folderName; });
+      const auto tpath = ::path(path.c_str()+1);
+      
+      auto it = std::find_if(datFiles.begin(), datFiles.end(), [&tpath](const DatFile& dat) { return tpath == dat.folderName; });
       if (it != datFiles.end())
         ATTR_AS_DIR(stbuf);
-      
+      else if (path.c_str()[1] != '.')
+      {
+        ATTR_AS_FILE(stbuf);
+        stbuf->st_size = 0;
+      }
+
       /*stbuf->st_mode = S_IFREG | 0444;
       stbuf->st_nlink = 1;
       stbuf->st_size = strlen(hello_str);*/
@@ -340,11 +352,15 @@ fs_ret MatrixFS::readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler,
   }
   else if (path.isAbsolute())
   {
-    auto it = std::find_if(datFiles.begin(), datFiles.end(), [&path](const DatFile& dat) { return path.relativizeToParent(::path("/")) == dat.folderName; });
+    auto it = std::find_if(datFiles.begin(), datFiles.end(), [&path](const DatFile& dat) { return dat.folderName == path.c_str()+1 ; });
     if (it != datFiles.end())
     {
       filler(buf, ".", nullptr, 0);
       filler(buf, "..", nullptr, 0);
+      
+      for (const auto& entry : it->entries)
+        filler(buf, entry->name.c_str(), nullptr, 0);
+      
       return 0;
     }
   }
