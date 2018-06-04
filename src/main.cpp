@@ -113,6 +113,7 @@ MatrixFS* MatrixFS::instance;
 #include "data/entry.h"
 
 #include <unordered_set>
+#include <unordered_map>
 #include <numeric>
 
 
@@ -172,7 +173,7 @@ public:
 
 
 
-class Database
+class DatabaseStore
 {
 public:
   virtual bool init() = 0;
@@ -188,7 +189,7 @@ public:
 };
 
 #include "leveldb/db.h"
-class LevelDBDatabase : public Database
+class LevelDBDatabase : public DatabaseStore
 {
 private:
   leveldb::DB* db;
@@ -240,17 +241,42 @@ public:
     return status.ok();
   }
 };
-
-std::vector<DatFile> datFiles;
     
+class DatabaseData
+{
+public:
+  using dat_list = std::unordered_map<std::string, DatFile>;
+  using hash_map = std::unordered_set<HashData, HashData::hasher>;
+  
+private:
+  dat_list _dats;
+  hash_map _hashes;
+  
+public:
+  //dat_list& dats() { return _dats; }
+  const hash_map& hashes() const { return _hashes; }
+  const dat_list& dats() const { return _dats; }
+  
+  DatFile* addDatFile(const DatFile& dat) { return &(*_dats.insert(std::make_pair(dat.name, dat)).first).second; }
+  const HashData* addHashData(const HashData&& hash) { return &(*_hashes.insert(hash).first); }
+  
+  const DatFile* datForName(const std::string& name) const
+  {
+    auto it = _dats.find(name);
+    return it != _dats.end() ? &it->second : nullptr;
+  }
+  
+  size_t hashesCount() { return _hashes.size(); }
+};
+
+DatabaseData data;
     
 int main(int argc, const char* argv[])
 {
-  auto dats = FileSystem::i()->contentsOfFolder("dats");
+  auto datFiles = FileSystem::i()->contentsOfFolder("dats");
   
   parsing::LogiqxParser parser;
   
-  std::unordered_set<HashData, HashData::hasher> data;
   parsing::ParseResult tresult;
   
   //Database* database = new LevelDBDatabase();
@@ -258,7 +284,7 @@ int main(int argc, const char* argv[])
   
   Hasher hasher;
   
-  for (const auto& dat : dats)
+  for (const auto& dat : datFiles)
   {
     HashData hash = hasher.compute(dat);
     hasher.reset();
@@ -270,8 +296,7 @@ int main(int argc, const char* argv[])
     tresult.sizeInBytes += result.sizeInBytes;
     tresult.count += result.count;
     
-    datFiles.push_back({ dat.filename(), dat.filename() });
-    auto& datEntry = datFiles.back();
+    DatFile* datFile = data.addDatFile({ dat.filename(), dat.filename() });
 
     
     for (auto& entry : result.entries)
@@ -282,16 +307,15 @@ int main(int argc, const char* argv[])
       /*if (!database->contains(std::string((const char*)key)))
         database->write(key, sizeof(hash::sha1_t), value, sizeof(HashData));*/
       
+      const HashData* hash = data.addHashData(std::move(entry.hash));
       
-      data.insert(std::move(entry.hash));
-      
-      datEntry.entries.push_back(new Entry(entry));
+      datFile->entries.insert(std::make_pair( entry.name, hash ));
     }
     
   }
   
   std::cout << tresult.count << " entries in " << strings::humanReadableSize(tresult.sizeInBytes, true, 2) << std::endl;
-  std::cout << data.size() << " entries in " << strings::humanReadableSize(std::accumulate(data.begin(), data.end(), 0UL, [](u64 v, const HashData& e) { return v += e.size; }), true, 2) << std::endl;
+  std::cout << data.hashes().size() << " entries in " << strings::humanReadableSize(std::accumulate(data.hashes().begin(), data.hashes().end(), 0UL, [](u64 v, const HashData& e) { return v += e.size; }), true, 2) << std::endl;
 
   //database->shutdown();
   
@@ -316,17 +340,32 @@ fs_ret MatrixFS::getattr(const fs_path& path, struct stat* stbuf)
     }
     else if (path.isAbsolute())
     {
-      const auto tpath = ::path(path.c_str()+1);
+      auto tpath = ::path(path.c_str()+1);
       
-      auto it = std::find_if(datFiles.begin(), datFiles.end(), [&tpath](const DatFile& dat) { return tpath == dat.folderName; });
-      if (it != datFiles.end())
+      const DatFile* dat = data.datForName(tpath.str());
+      
+      if (dat)
         ATTR_AS_DIR(stbuf);
-      else if (path.c_str()[1] != '.')
+      else
       {
-        ATTR_AS_FILE(stbuf);
-        stbuf->st_size = 0;
-      }
+        auto ppath = tpath.parent();
+        
+        const DatFile* dat = data.datForName(ppath.str());
 
+        if (dat)
+        {
+          auto fileName = tpath.filename();
+          
+          auto it = dat->entries.find(fileName);
+          
+          if (it != dat->entries.end())
+          {
+            ATTR_AS_FILE(stbuf);
+            stbuf->st_size = it->second->size;
+          }
+        }
+      }
+      
       /*stbuf->st_mode = S_IFREG | 0444;
       stbuf->st_nlink = 1;
       stbuf->st_size = strlen(hello_str);*/
@@ -345,22 +384,23 @@ fs_ret MatrixFS::readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler,
     filler(buf, ".", nullptr, 0);
     filler(buf, "..", nullptr, 0);
     
-    for (const auto& dat : datFiles)
-      filler(buf, dat.folderName.c_str(), nullptr, 0);
-    
+    for (const auto& dat : data.dats())
+      filler(buf, dat.second.folderName.c_str(), nullptr, 0);
+
     return 0;
   }
   else if (path.isAbsolute())
   {
-    auto it = std::find_if(datFiles.begin(), datFiles.end(), [&path](const DatFile& dat) { return dat.folderName == path.c_str()+1 ; });
-    if (it != datFiles.end())
+    const DatFile* dat = data.datForName(path.makeRelative().str());
+    
+    if (dat)
     {
       filler(buf, ".", nullptr, 0);
       filler(buf, "..", nullptr, 0);
-      
-      for (const auto& entry : it->entries)
-        filler(buf, entry->name.c_str(), nullptr, 0);
-      
+        
+      for (const auto& entry : dat->entries)
+        filler(buf, entry.first.c_str(), nullptr, 0);
+        
       return 0;
     }
   }

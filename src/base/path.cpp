@@ -87,3 +87,24 @@ path path::removeLast() const
   else
     return path();
 }
+
+std::pair<path, path> path::splitParentAndFilename() const
+{
+  size_t index = _data.rfind(SEPARATOR);
+
+  if (index == std::string::npos)
+    return std::make_pair(path(), *this);
+  else
+    return std::make_pair(_data.substr(0, index), _data.substr(index+1));
+}
+
+path path::removeAllButFirst() const
+{
+  size_t index = _data.find(SEPARATOR);
+  return index != std::string::npos ? _data.substr(index+1) : _data;
+}
+
+path path::makeRelative() const
+{
+  return _data[0] == SEPARATOR ? path(&_data[1]) : *this;
+}

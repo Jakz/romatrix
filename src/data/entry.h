@@ -44,15 +44,17 @@ struct HashData
   };
 };
 
-struct Entry
+struct ParseEntry
 {
   HashData hash;
   std::string name;
 };
 
+#include <unordered_map>
+
 struct DatFile
 {
   std::string name;
   std::string folderName;
-  std::vector<const Entry*> entries;
+  std::unordered_map<std::string, const HashData*> entries;
 };

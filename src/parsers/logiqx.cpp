@@ -22,7 +22,7 @@ namespace parsing
         
         for (pugi::xml_node rom : roms)
         {
-          Entry entry;
+          ParseEntry entry;
           
           entry.name = rom.attribute("name").as_string();
           entry.hash.size = (size_t)std::strtoull(rom.attribute("size").as_string(), nullptr, 10);

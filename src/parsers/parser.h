@@ -10,7 +10,7 @@ namespace parsing
   {
     size_t count;
     size_t sizeInBytes;
-    std::vector<Entry> entries;
+    std::vector<ParseEntry> entries;
   };
   
   class Parser
