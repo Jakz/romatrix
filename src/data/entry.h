@@ -1,6 +1,6 @@
 #pragma once
 
-#include "data/hash/hash.h"
+#include "hash/hash.h"
 
 struct HashData
 {

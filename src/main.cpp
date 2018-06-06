@@ -43,7 +43,8 @@ private:
   static int access(const char* path, int) { return 0; }
   
   static int sgetattr(const char *path, struct stat *stbuf) { return instance->getattr(path, stbuf); }
-  static int sreaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) { return instance->readdir(path, buf, filler, offset, fi); }
+  static int sreaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, fuse_file_info *fi) { return instance->readdir(path, buf, filler, offset, fi); }
+  static int sopendir(const char* path, fuse_file_info* fi) { return instance->opendir(path, fi); }
   
   static int open(const char *path, struct fuse_file_info *fi)
   {
@@ -75,7 +76,9 @@ private:
   }
   
   fs_ret getattr(const fs_path& path, struct stat* stbuf);
-  fs_ret readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi);
+  
+  fs_ret opendir(const fs_path& path, fuse_file_info* fi);
+  fs_ret readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler, off_t offset, fuse_file_info* fi);
 
   
 public:
@@ -88,7 +91,11 @@ public:
     ops.statfs = statsfs;
     ops.access = access;
     ops.getattr = sgetattr;
+    
+    ops.opendir = sopendir;
     ops.readdir = sreaddir;
+    
+    
     ops.open = open;
     ops.read = read;
   }
@@ -161,6 +168,25 @@ public:
     hashData.sha1 = sha1.get();
     
     return hashData;
+  }
+  
+  HashData get()
+  {
+    HashData hashData;
+    
+    hashData.size = 0;
+    hashData.crc32 = crc.get();
+    hashData.md5 = md5.get();
+    hashData.sha1 = sha1.get();
+    
+    return hashData;
+  }
+  
+  void update(const void* data, size_t length)
+  {
+    crc.update(data, length);
+    md5.update(data, length);
+    sha1.update(data, length);
   }
   
   void reset()
@@ -271,8 +297,60 @@ public:
 
 DatabaseData data;
     
+    
+    /******/
+    
+#if defined(__unix__)
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#elif defined(XP_WIN)
+#include <windows.h>
+#endif
+    
+#include <unistd.h>
+    
 int main(int argc, const char* argv[])
-{
+{  
+  size_t totalCount;
+  
+  struct pp {
+    std::array<u32, 2> c;
+    pp() : c({0,0}) { } };
+  
+  std::unordered_map<HashData, pp, HashData::hasher> values;
+  Hasher hz;
+  
+  size_t ii = 0;
+  for (const std::string& path : { "/Volumes/RAMDisk/specimen1.bin", "/Volumes/RAMDisk/specimen2.bin" })
+  {
+    file_handle f = file_handle(path, file_mode::READING);
+    constexpr size_t SECTOR_SIZE = 2352;
+    
+    const size_t size = f.length();
+    assert(size % SECTOR_SIZE == 0);
+    for (size_t i = 0; i < size/SECTOR_SIZE; ++i)
+    {
+      hz.reset();
+      byte buffer[SECTOR_SIZE];
+      assert(f.read(buffer, 1, SECTOR_SIZE) == SECTOR_SIZE);
+      hz.update(buffer, SECTOR_SIZE);
+      
+      HashData hd = hz.get();
+
+      ++values[hd].c[ii];
+      ++totalCount;
+    }
+    
+    f.close();
+    ++ii;
+  }
+  
+  std::cout << "Total sectors: " << totalCount << std::endl;
+  std::cout << "Unique sectors: " << values.size() << std::endl;
+
+  return 0;
+  
   auto datFiles = FileSystem::i()->contentsOfFolder("dats");
   
   parsing::LogiqxParser parser;
@@ -375,29 +453,58 @@ fs_ret MatrixFS::getattr(const fs_path& path, struct stat* stbuf)
     
     return res;
 }
+    
+using fuse_opaque_handle = uint64_t;
+constexpr static fuse_opaque_handle DAT_LIST_FH_HANDLE = 0xFFFFFFFFFFFFFFFFULL;
+    
+fs_ret MatrixFS::opendir(const fs_path& path, fuse_file_info* fi)
+{
+  /* opendir is called before readdir, we can store in fi->fh values used
+     later by readdir */
+  
+  fs_ret ret = 0;
+  fi->fh = 0ULL;
+  
+  /* if path is root use special value to signal it */
+  if (path == "/")
+    fi->fh = DAT_LIST_FH_HANDLE;
+  else if (path.isAbsolute())
+  {
+    /* path is made as "/some_nice_text", find a corresponding DAT */
+    const DatFile* dat = data.datForName(path.makeRelative().str());
 
+    if (dat)
+      fi->fh = reinterpret_cast<u64>(dat);
+    else
+      fi->fh = -ENOENT;
+  }
+
+  return ret;
+}
 
 fs_ret MatrixFS::readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi)
 {
-  if (path == "/")
+  /* special case, all the DATs folders */
+  if (fi->fh == DAT_LIST_FH_HANDLE)
   {
     filler(buf, ".", nullptr, 0);
     filler(buf, "..", nullptr, 0);
     
     for (const auto& dat : data.dats())
       filler(buf, dat.second.folderName.c_str(), nullptr, 0);
-
+    
     return 0;
   }
-  else if (path.isAbsolute())
+  else if (fi->fh)
   {
-    const DatFile* dat = data.datForName(path.makeRelative().str());
+    const DatFile* dat = reinterpret_cast<const DatFile*>(fi->fh);
     
     if (dat)
     {
       filler(buf, ".", nullptr, 0);
       filler(buf, "..", nullptr, 0);
-        
+      
+      /* fill with all entry from DAT */
       for (const auto& entry : dat->entries)
         filler(buf, entry.first.c_str(), nullptr, 0);
         
