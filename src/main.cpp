@@ -13,7 +13,7 @@
 
 #include <iostream>
 
-#include "base/path.h"
+#include "tbx/base/path.h"
 
 static const char* hello_str = "Hello World!\n";
 static const char* hello_path = "/hello";
@@ -115,7 +115,7 @@ MatrixFS* MatrixFS::instance;
 #include "libs/pugixml/pugixml.hpp"
 #include "parsers/parser.h"
 
-#include "base/file_system.h"
+#include "tbx/base/file_system.h"
 
 #include "data/entry.h"
 
@@ -297,57 +297,31 @@ public:
 
 DatabaseData data;
     
+
+using cataloguer_t = std::function<path(const HashData&)>;
     
-    /******/
-    
-#if defined(__unix__)
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#elif defined(XP_WIN)
-#include <windows.h>
-#endif
-    
-#include <unistd.h>
     
 int main(int argc, const char* argv[])
 {  
-  size_t totalCount;
+  auto files = FileSystem::i()->contentsOfFolder("/Volumes/RAMDisk/input");
+  auto root = path("/Volumes/RAMDisk/output");
   
-  struct pp {
-    std::array<u32, 2> c;
-    pp() : c({0,0}) { } };
+  cataloguer_t cataloguer = [] (const HashData& hd) {
+    std::string path = hd.sha1.operator std::string().substr(0,2);
+    return path;
+  };
   
-  std::unordered_map<HashData, pp, HashData::hasher> values;
-  Hasher hz;
-  
-  size_t ii = 0;
-  for (const std::string& path : { "/Volumes/RAMDisk/specimen1.bin", "/Volumes/RAMDisk/specimen2.bin" })
+  for (const auto& file : files)
   {
-    file_handle f = file_handle(path, file_mode::READING);
-    constexpr size_t SECTOR_SIZE = 2352;
+    Hasher hasher;
+    HashData data = hasher.compute(file);
     
-    const size_t size = f.length();
-    assert(size % SECTOR_SIZE == 0);
-    for (size_t i = 0; i < size/SECTOR_SIZE; ++i)
-    {
-      hz.reset();
-      byte buffer[SECTOR_SIZE];
-      assert(f.read(buffer, 1, SECTOR_SIZE) == SECTOR_SIZE);
-      hz.update(buffer, SECTOR_SIZE);
-      
-      HashData hd = hz.get();
-
-      ++values[hd].c[ii];
-      ++totalCount;
-    }
-    
-    f.close();
-    ++ii;
+    path destination = root + cataloguer(data);
+    FileSystem::i()->createFolder(destination);
+    destination += file.filename();
+    FileSystem::i()->copy(file, destination);
   }
-  
-  std::cout << "Total sectors: " << totalCount << std::endl;
-  std::cout << "Unique sectors: " << values.size() << std::endl;
+
 
   return 0;
   
