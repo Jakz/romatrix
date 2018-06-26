@@ -24,4 +24,20 @@ namespace parsing
   public:
     ParseResult parse(const path& path) override;
   };
+  
+  class ClrMameProParser : public Parser
+  {
+  private:
+    bool started, insideRom;
+    ParseEntry entry;
+    ParseResult result;
+    
+    std::string readToken();
+    
+    void pair(const std::string& key, const std::string& value);
+    void scope(const std::string& tkn, bool isEnd);
+    
+  public:
+    ParseResult parse(const path& path) override;
+  };
 };

@@ -22,6 +22,7 @@
 		0426DE9E20CAEC25001A6E55 /* liblzma.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0426DE9B20CAEC25001A6E55 /* liblzma.a */; };
 		0426DE9F20CAEC25001A6E55 /* liblzma.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 0426DE9C20CAEC25001A6E55 /* liblzma.dylib */; };
 		042F33BE20BF8EAA00FE15EE /* libleveldb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 042F33BD20BF8EAA00FE15EE /* libleveldb.a */; };
+		04B863E320E1E48A00A315E3 /* clrmamepro.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04B863E220E1E48A00A315E3 /* clrmamepro.cpp */; };
 		04CDA92C20C18E2500DBFB40 /* libosxfuse.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 04CDA92A20C18DFC00DBFB40 /* libosxfuse.2.dylib */; };
 		04D7656620BE1B4C00D25B87 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04D7656420BE1B4C00D25B87 /* main.cpp */; };
 		04D7656820BE1BA300D25B87 /* dats in CopyFiles */ = {isa = PBXBuildFile; fileRef = 04D7656720BE1B9700D25B87 /* dats */; };
@@ -110,6 +111,7 @@
 		0426DE9B20CAEC25001A6E55 /* liblzma.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = liblzma.a; path = ../toolbox/libs/lzma/lib/liblzma.a; sourceTree = "<group>"; };
 		0426DE9C20CAEC25001A6E55 /* liblzma.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = liblzma.dylib; path = ../toolbox/libs/lzma/lib/liblzma.dylib; sourceTree = "<group>"; };
 		042F33BD20BF8EAA00FE15EE /* libleveldb.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libleveldb.a; path = ../../../../../../../usr/local/Cellar/leveldb/1.20_2/lib/libleveldb.a; sourceTree = "<group>"; };
+		04B863E220E1E48A00A315E3 /* clrmamepro.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clrmamepro.cpp; sourceTree = "<group>"; };
 		04CDA92A20C18DFC00DBFB40 /* libosxfuse.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libosxfuse.2.dylib; path = ../../../../../../../usr/local/lib/libosxfuse.2.dylib; sourceTree = "<group>"; };
 		04D7655920BE1B1400D25B87 /* romatrix */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = romatrix; sourceTree = BUILT_PRODUCTS_DIR; };
 		04D7656420BE1B4C00D25B87 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
@@ -343,6 +345,7 @@
 		04D7656E20BE1C2900D25B87 /* parsers */ = {
 			isa = PBXGroup;
 			children = (
+				04B863E220E1E48A00A315E3 /* clrmamepro.cpp */,
 				04D7659820BE277700D25B87 /* logiqx.cpp */,
 				04D7657020BE1C9A00D25B87 /* parser.h */,
 			);
@@ -435,6 +438,7 @@
 				0426DE8120CAEC09001A6E55 /* format.cc in Sources */,
 				0426DE8220CAEC09001A6E55 /* ostream.cc in Sources */,
 				0426DE8820CAEC09001A6E55 /* sha1.cpp in Sources */,
+				04B863E320E1E48A00A315E3 /* clrmamepro.cpp in Sources */,
 				04D7656F20BE1C2900D25B87 /* pugixml.cpp in Sources */,
 				0426DE7E20CAEC09001A6E55 /* common.cpp in Sources */,
 				0426DE8720CAEC09001A6E55 /* md5.cpp in Sources */,

@@ -4,14 +4,22 @@
 
 struct HashData
 {
-  size_t size;
+  struct
+  {
+    u64 md5enabled : 1;
+    u64 sha1enabled : 1;
+    u64 crc32enabled : 1;
+    u64 padding : 1;
+    u64 size : 60;
+  };
+  
   hash::crc32_t crc32;
   hash::md5_t md5;
   hash::sha1_t sha1;
   
-  HashData()
+  HashData() : md5enabled(false), sha1enabled(false), crc32enabled(false)
   {
-    static_assert(sizeof(HashData) == sizeof(size_t) + sizeof(hash::crc32_t) + sizeof(hash::sha1_t) + sizeof(hash::md5_t), "");
+    static_assert(sizeof(HashData) == sizeof(u64) + sizeof(hash::crc32_t) + sizeof(hash::sha1_t) + sizeof(hash::md5_t), "");
   }
   
   /*HashData& operator=(const HashData&& other)
@@ -23,23 +31,30 @@ struct HashData
     return *this;
   }*/
   
+  //TODO: take into account the fact that some fields could not be enabled
   bool operator==(const HashData& other) const
   {
-    return size == other.size && crc32 == other.crc32 &&
-      md5 == other.md5 && sha1 == other.sha1;
+    return size == other.size
+      && crc32 == other.crc32
+      && md5 == other.md5
+      && sha1 == other.sha1;
   }
   
   bool operator!=(const HashData& other) const
   {
-    return size != other.size || crc32 != other.crc32 ||
-      md5 != other.md5 || sha1 != other.sha1;
+    return !(this->operator==(other));
   }
   
   struct hasher
   {
     size_t operator()(const HashData& o) const
     {
-      return *reinterpret_cast<const size_t*>(o.md5.inner());
+      assert(o.md5enabled || o.sha1enabled);
+      
+      if (o.md5enabled)
+        return *reinterpret_cast<const size_t*>(o.md5.inner());
+      else
+        return *reinterpret_cast<const size_t*>(o.sha1.inner());
     }
   };
 };

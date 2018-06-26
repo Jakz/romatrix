@@ -12,6 +12,7 @@
 #include <fuse/fuse.h>
 
 #include <iostream>
+#include <iomanip>
 
 #include "tbx/base/path.h"
 
@@ -292,7 +293,21 @@ public:
     return it != _dats.end() ? &it->second : nullptr;
   }
   
-  size_t hashesCount() { return _hashes.size(); }
+  size_t hashesCount() const { return _hashes.size(); }
+  
+  
+  size_t aproximateSize() const
+  {
+    size_t sizeForHashes = sizeof(HashData) * _hashes.size();
+    size_t sizeForDats = std::accumulate(_dats.begin(), _dats.end(), 0UL, [] (size_t v, const dat_list::value_type& pair) {
+      return v + std::accumulate(pair.second.entries.begin(), pair.second.entries.end(), 0UL, [] (size_t v, const decltype(DatFile::entries)::value_type& value) {
+        return v + value.first.length() + sizeof(HashData*);
+      });
+    });
+
+    // round up by a 20% to take into account memory used for data structure internals
+    return (sizeForHashes + sizeForDats) * 1.20f;
+  }
 };
 
 DatabaseData data;
@@ -303,7 +318,7 @@ using cataloguer_t = std::function<path(const HashData&)>;
     
 int main(int argc, const char* argv[])
 {  
-  auto files = FileSystem::i()->contentsOfFolder("/Volumes/RAMDisk/input");
+  /*auto files = FileSystem::i()->contentsOfFolder("/Volumes/RAMDisk/input");
   auto root = path("/Volumes/RAMDisk/output");
   
   cataloguer_t cataloguer = [] (const HashData& hd) {
@@ -322,14 +337,13 @@ int main(int argc, const char* argv[])
     FileSystem::i()->copy(file, destination);
   }
 
-
-  return 0;
+  return 0;*/
   
   auto datFiles = FileSystem::i()->contentsOfFolder("dats");
   
   parsing::LogiqxParser parser;
   
-  parsing::ParseResult tresult;
+  parsing::ParseResult tresult = {0,0};
   
   //Database* database = new LevelDBDatabase();
   //database->init();
@@ -340,10 +354,18 @@ int main(int argc, const char* argv[])
   {
     HashData hash = hasher.compute(dat);
     hasher.reset();
-    std::cout << std::hex << hash.crc32 << " " << hash.md5.operator std::string() << " " << hash.sha1.operator std::string() << std::endl;
+    std::cout
+      << std::setw(8) << std::hex << hash.crc32 << " "
+      << hash.md5.operator std::string() << " "
+      << hash.sha1.operator std::string() << " "
+      << strings::humanReadableSize(dat.length(), true, 2)
+      << std::endl;
     
     
     auto result = parser.parse(dat);
+    
+    if (result.count == 0)
+      result = parsing::ClrMameProParser().parse(dat);
     
     tresult.sizeInBytes += result.sizeInBytes;
     tresult.count += result.count;
@@ -366,13 +388,16 @@ int main(int argc, const char* argv[])
     
   }
   
+  std::cout << std::dec;
   std::cout << tresult.count << " entries in " << strings::humanReadableSize(tresult.sizeInBytes, true, 2) << std::endl;
   std::cout << data.hashes().size() << " entries in " << strings::humanReadableSize(std::accumulate(data.hashes().begin(), data.hashes().end(), 0UL, [](u64 v, const HashData& e) { return v += e.size; }), true, 2) << std::endl;
+  
+  std::cout << "database memory footprint: " << strings::humanReadableSize(data.aproximateSize(), true, 2) << std::endl;
 
   //database->shutdown();
   
-  MatrixFS fs;
-  fs.createHandle();
+  //MatrixFS fs;
+  //fs.createHandle();
   
   return 0;
 }
