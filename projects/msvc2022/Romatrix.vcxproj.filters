@@ -1,0 +1,96 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{ee0774c7-2be4-457e-9ed8-7a1318ec9d03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\tbx">
+      <UniqueIdentifier>{edbf11e0-c705-4dd5-b7af-344951bfa422}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\tbx\extra">
+      <UniqueIdentifier>{3c4ce892-393e-46c5-82a3-0ee50f365ce8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\tbx\extra\fmt">
+      <UniqueIdentifier>{be0014e8-e780-4dde-a504-4a5af2ad39a6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\tbx\base">
+      <UniqueIdentifier>{30d98621-a981-4ea0-8435-f41ced1d373a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\tbx\hash">
+      <UniqueIdentifier>{10e8208b-a8d7-446a-8392-40e28ceaf909}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\parsers">
+      <UniqueIdentifier>{8900f87f-639b-42be-8bdd-6edd3d3aa198}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\libs">
+      <UniqueIdentifier>{db12ae4e-1b8a-4e0d-aed2-b0070c0394bc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\libs\pugixml">
+      <UniqueIdentifier>{eaa30111-47b7-408e-a31e-72a5f01cc4b9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\toolbox\src\tbx\base\file_system.cpp">
+      <Filter>src\tbx\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\toolbox\src\tbx\base\path.cpp">
+      <Filter>src\tbx\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\toolbox\src\tbx\base\common.cpp">
+      <Filter>src\tbx\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\toolbox\src\tbx\hash\md5.cpp">
+      <Filter>src\tbx\hash</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\toolbox\src\tbx\hash\sha1.cpp">
+      <Filter>src\tbx\hash</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\toolbox\src\tbx\hash\crc32.cpp">
+      <Filter>src\tbx\hash</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\parsers\clrmamepro.cpp">
+      <Filter>src\parsers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\parsers\logiqx.cpp">
+      <Filter>src\parsers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\retrozip\toolbox\src\tbx\extra\fmt\format.cc">
+      <Filter>src\tbx\extra\fmt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\pugixml\pugixml.cpp">
+      <Filter>src\libs\pugixml</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\toolbox\src\tbx\base\common.h">
+      <Filter>src\tbx\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\toolbox\src\tbx\base\exceptions.h">
+      <Filter>src\tbx\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\toolbox\src\tbx\base\file_system.h">
+      <Filter>src\tbx\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\toolbox\src\tbx\base\path.h">
+      <Filter>src\tbx\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\toolbox\src\tbx\base\arguments.h">
+      <Filter>src\tbx\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\toolbox\src\tbx\hash\hash.h">
+      <Filter>src\tbx\hash</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\parsers\parser.h">
+      <Filter>src\parsers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\libs\pugixml\pugiconfig.hpp">
+      <Filter>src\libs\pugixml</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\libs\pugixml\pugixml.hpp">
+      <Filter>src\libs\pugixml</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

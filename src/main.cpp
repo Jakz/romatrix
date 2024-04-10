@@ -9,7 +9,7 @@
 #define FUSE_USE_VERSION 26
 #include <cstring>
 #include <cerrno>
-#include <fuse/fuse.h>
+#include "fuse/fuse.h"
 
 #include <iostream>
 #include <iomanip>
@@ -21,6 +21,15 @@ static const char* hello_path = "/hello";
 
 using fs_ret = int;
 using fs_path = path;
+
+using fsblkcnt_t = uint64_t;
+using fsfilcnt_t = uint64_t;
+
+using fuse_offset = long long;
+
+#if !defined(O_ACCMODE)
+#define O_ACCMODE     (O_RDONLY | O_WRONLY | O_RDWR)
+#endif
 
 class MatrixFS
 {
@@ -43,8 +52,8 @@ private:
 
   static int access(const char* path, int) { return 0; }
   
-  static int sgetattr(const char *path, struct stat *stbuf) { return instance->getattr(path, stbuf); }
-  static int sreaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, fuse_file_info *fi) { return instance->readdir(path, buf, filler, offset, fi); }
+  static int sgetattr(const char *path, FUSE_STAT* stbuf) { return instance->getattr(path, stbuf); }
+  static int sreaddir(const char *path, void *buf, fuse_fill_dir_t filler, fuse_offset offset, fuse_file_info *fi) { return instance->readdir(path, buf, filler, offset, fi); }
   static int sopendir(const char* path, fuse_file_info* fi) { return instance->opendir(path, fi); }
   
   static int open(const char *path, struct fuse_file_info *fi)
@@ -58,7 +67,7 @@ private:
     return 0;
   }
   
-  static int read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+  static int read(const char *path, char *buf, size_t size, fuse_offset offset, struct fuse_file_info *fi)
   {
     //std::cout << "read" << std::endl;
     
@@ -76,14 +85,14 @@ private:
     return (int)size;
   }
   
-  fs_ret getattr(const fs_path& path, struct stat* stbuf);
+  fs_ret getattr(const fs_path& path, FUSE_STAT* stbuf);
   
   fs_ret opendir(const fs_path& path, fuse_file_info* fi);
-  fs_ret readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler, off_t offset, fuse_file_info* fi);
+  fs_ret readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler, fuse_offset offset, fuse_file_info* fi);
 
   
 public:
-  MatrixFS()
+  MatrixFS() : fs(nullptr)
   {
     instance = this;
     
@@ -103,9 +112,8 @@ public:
   
   void createHandle()
   {
-    char* argv[] = { "fuse", "-d", "/Users/jack/mount" };
+    char* argv[] = { (char*)"fuse", (char*)"-d", (char*)R"(C:\Users\Jack\Documents\dev\romatrix\mount)" };
     int i =  fuse_main(3, argv, &ops, nullptr);
-    
   }
 };
 
@@ -127,9 +135,10 @@ MatrixFS* MatrixFS::instance;
 
 #include <cstdio>
 
-#include <sys/mman.h>
+#include <io.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
 class Hasher
 {
   using fd_t = int;
@@ -149,17 +158,21 @@ public:
   
   HashData compute(const path& path)
   {
-    fd_t fd = open(path.c_str(), O_RDONLY);
+    fd_t fd = _open(path.c_str(), O_RDONLY);
     size_t size = sizeOfFile(fd);
-    
-    byte* buffer = reinterpret_cast<byte*>(mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0));
-    
+
+    byte* buffer = new byte[size];
+    _read(fd, buffer, size);
+        
+    //byte* buffer = reinterpret_cast<byte*>(mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0));
     crc.update(buffer, size);
     md5.update(buffer, size);
     sha1.update(buffer, size);
     
+    //munmap(buffer, size);
+    delete [] buffer;
     
-    munmap(buffer, size);
+    _close(fd);
     
     HashData hashData;
     
@@ -226,7 +239,7 @@ public:
   bool init() override
   {
     options.create_if_missing = true;
-    leveldb::Status status = leveldb::DB::Open(options, "database", &db);
+    leveldb::Status status = leveldb::DB::Open(options, R"(database)", &db);
     return status.ok();
   }
   
@@ -345,7 +358,7 @@ int main(int argc, const char* argv[])
   
   parsing::ParseResult tresult = {0,0};
   
-  //Database* database = new LevelDBDatabase();
+  //DatabaseStore* database = new LevelDBDatabase();
   //database->init();
   
   Hasher hasher;
@@ -378,8 +391,8 @@ int main(int argc, const char* argv[])
       const byte* key = entry.hash.sha1.inner();
       const byte* value = (const byte*) &entry.hash;
       
-      /*if (!database->contains(std::string((const char*)key)))
-        database->write(key, sizeof(hash::sha1_t), value, sizeof(HashData));*/
+      //if (!database->contains(std::string((const char*)key)))
+      //  database->write(key, sizeof(hash::sha1_t), value, sizeof(HashData));
       
       const HashData* hash = data.addHashData(std::move(entry.hash));
       
@@ -396,8 +409,8 @@ int main(int argc, const char* argv[])
 
   //database->shutdown();
   
-  //MatrixFS fs;
-  //fs.createHandle();
+  MatrixFS fs;
+  fs.createHandle();
   
   return 0;
 }
@@ -405,10 +418,10 @@ int main(int argc, const char* argv[])
 #define ATTR_AS_FILE(x) x->st_mode = S_IFREG | 0444
 #define ATTR_AS_DIR(x) x->st_mode = S_IFDIR | 0755
 
-fs_ret MatrixFS::getattr(const fs_path& path, struct stat* stbuf)
+fs_ret MatrixFS::getattr(const fs_path& path, FUSE_STAT* stbuf)
 {
     int res = 0;
-    memset(stbuf, 0, sizeof(struct stat));
+    memset(stbuf, 0, sizeof(FUSE_STAT));
     stbuf->st_nlink = 1;
     
     if (path == "/")
@@ -481,7 +494,7 @@ fs_ret MatrixFS::opendir(const fs_path& path, fuse_file_info* fi)
   return ret;
 }
 
-fs_ret MatrixFS::readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi)
+fs_ret MatrixFS::readdir(const fs_path& path, void* buf, fuse_fill_dir_t filler, fuse_offset offset, struct fuse_file_info* fi)
 {
   /* special case, all the DATs folders */
   if (fi->fh == DAT_LIST_FH_HANDLE)
